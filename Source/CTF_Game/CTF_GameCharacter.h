@@ -113,14 +113,20 @@ public:
 	virtual void OnDeath(AActor* Killer) override;
 	virtual void OnRespawn() override;
 
-	// La bandera se asigne al jugador
+	// La bandera se asign al jugador
 	void EquipItem(AActor* ItemToEquip);
 
-	// Malla para el Equipo 0 (Verde)
+	// 1. PRIMERO le decimos a Unreal que la función existe (¡No te olvides el UFUNCTION!)
+	UFUNCTION()
+	void OnRep_Team();
+
+	// 2. DESPUÉS declaramos la variable que la va a usar
+	UPROPERTY(ReplicatedUsing = OnRep_Team, EditAnywhere, BlueprintReadWrite, Category = "CTF Skins")
+	int32 TeamID = 0;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Skins")
 	USkeletalMesh* SkinEquipo0;
 
-	// Malla para el Equipo 1 (Rojo)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Skins")
 	USkeletalMesh* SkinEquipo1;
 
@@ -137,7 +143,7 @@ protected:
 	// Salud actual
 	UPROPERTY(Replicated)
 	float Health;
-
+	
 	// Salud máxima
 	UPROPERTY(EditDefaultsOnly, Category = "CTF")
 	float MaxHealth;

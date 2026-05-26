@@ -28,6 +28,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Rules")
     int32 MaxScoreToWin = 3;
 
+    int32 NextTeamToAssign = 0;
+
 protected:
     // Puntaje necesario para ganar
     UPROPERTY(EditDefaultsOnly, Category = "CTF Rules")

@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "FPS on Startup",
+	"Description": "Loads FPS/MS Stats with the start of the Editor",
+	"Category": "Editor",
+	"CreatedBy": "Irrelevant Pixel",
+	"CreatedByURL": "https://www.unrealengine.com/marketplace/en-US/profile/Irrelevant+Pixel?count=20&sortBy=effectiveDate&sortDir=DESC&start=0",
+	"DocsURL": "",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/083a2295c86f4163b177217c9ce56feb",
+	"SupportURL": "",
+	"EngineVersion": "5.7.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "FPSinViewport",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		}
+	]
+}

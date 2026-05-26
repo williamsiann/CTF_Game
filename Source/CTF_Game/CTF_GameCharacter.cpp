@@ -51,8 +51,6 @@ ACTF_GameCharacter::ACTF_GameCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
-
-	
 }
 
 void ACTF_GameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -145,6 +143,7 @@ void ACTF_GameCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ACTF_GameCharacter, CarriedItem);
 	DOREPLIFETIME(ACTF_GameCharacter, bIsDead);
 	DOREPLIFETIME(ACTF_GameCharacter, Health);
+	DOREPLIFETIME(ACTF_GameCharacter, TeamID);
 }
 
 // --- BeginPlay ---
@@ -156,17 +155,19 @@ void ACTF_GameCharacter::BeginPlay()
 	Health      = MaxHealth; 
 	bIsDead     = false;
 
-	// --- CAMBIO DE SKIN POR EQUIPO ---
+	// Esto lee el equipo del servidor automáticamente, no tenés que configurar nada en el editor
 	if (ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>())
 	{
-		if (PS->GetTeam() == 0 && SkinEquipo0 != nullptr)
-		{
-			GetMesh()->SetSkeletalMeshAsset(SkinEquipo0);
-		}
-		else if (PS->GetTeam() == 1 && SkinEquipo1 != nullptr)
-		{
-			GetMesh()->SetSkeletalMeshAsset(SkinEquipo1);
-		}
+		TeamID = PS->GetTeam(); 
+	}
+
+	if (TeamID == 0 && SkinEquipo0)
+	{
+		GetMesh()->SetSkeletalMeshAsset(SkinEquipo0);
+	}
+	else if (TeamID == 1 && SkinEquipo1)
+	{
+		GetMesh()->SetSkeletalMeshAsset(SkinEquipo1);
 	}
 }
 
@@ -338,5 +339,18 @@ void ACTF_GameCharacter::OnDropped()
 	if (HasAuthority() && CarriedItem != nullptr)
 	{
 		Server_DropItem();
+	}
+}
+
+void ACTF_GameCharacter::OnRep_Team()
+{
+	// Esta función cambia la malla del personaje según el equipo
+	if (TeamID == 0 && SkinEquipo0)
+	{
+		GetMesh()->SetSkeletalMeshAsset(SkinEquipo0);
+	}
+	else if (TeamID == 1 && SkinEquipo1)
+	{
+		GetMesh()->SetSkeletalMeshAsset(SkinEquipo1);
 	}
 }

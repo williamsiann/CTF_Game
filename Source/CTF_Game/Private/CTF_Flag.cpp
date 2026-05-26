@@ -7,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "CTF_PlayerState.h"
 #include "Engine/Engine.h"
+#include "Components/SkeletalMeshComponent.h"
 
 
 // --- Constructor ---
@@ -27,7 +28,7 @@ ACTF_Flag::ACTF_Flag()
     InteractionSphere->SetCollisionProfileName(TEXT("OverlapAllDynamic")); // Solo Overlap
 
     // Malla de la Bandera y la atachamos al Root
-    FlagMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FlagMesh"));
+    FlagMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FlagMesh"));
     FlagMesh->SetupAttachment(RootComp);
     FlagMesh->SetCollisionProfileName(TEXT("NoCollision")); // Sin colisión física
 }

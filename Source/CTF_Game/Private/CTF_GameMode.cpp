@@ -6,6 +6,7 @@
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
+#include "CTF_GameCharacter.h"
 
 ACTF_GameMode::ACTF_GameMode()
 {
@@ -26,30 +27,32 @@ void ACTF_GameMode::AssignTeam(APlayerController* NewPlayer)
     ACTF_PlayerState* PS = NewPlayer->GetPlayerState<ACTF_PlayerState>();
     if (!PS) return;
 
-    ACTF_GameState* GS = GetGameState<ACTF_GameState>();
-    if (!GS) return;
-
-    int32 TeamA = GS->GetTeamSize(0);
-    int32 TeamB = GS->GetTeamSize(1);
-
-    int32 AssignedTeam = (TeamA <= TeamB) ? 0 : 1;
+    int32 AssignedTeam = NextTeamToAssign;
+    NextTeamToAssign = (NextTeamToAssign == 0) ? 1 : 0; 
     
-    // IMPORTANTE: Descomentá esto para que el PlayerState guarde el equipo
     PS->SetTeam(AssignedTeam); 
     
-    GS->AddPlayerToTeam(AssignedTeam);
+    ACTF_GameState* GS = GetGameState<ACTF_GameState>();
+    if (GS)
+    {
+        GS->AddPlayerToTeam(AssignedTeam);
+    }
 
-    // --- CARTEL DE BUG PARA LOG Y PANTALLA ---
+    if (ACTF_GameCharacter* MiPersonaje = Cast<ACTF_GameCharacter>(NewPlayer->GetPawn()))
+    {
+        MiPersonaje->TeamID = AssignedTeam; // Le clavamos el número correcto
+        MiPersonaje->OnRep_Team();          // Obligamos al servidor a que actualice la malla
+    }
+    // ------------------------------------------------
+
     FString LoginMsg = FString::Printf(TEXT("¡Jugador %s asignado al EQUIPO %d!"), *NewPlayer->GetName(), AssignedTeam);
     UE_LOG(LogTemp, Warning, TEXT("%s"), *LoginMsg);
     
     if (GEngine)
     {
-        // Lo ponemos en color celeste (Cyan) por 10 segundos para que te dé tiempo a verlo
         GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, LoginMsg);
     }
 }
-
 void ACTF_GameMode::StartMatch()
 {
     ACTF_GameState* GS = GetGameState<ACTF_GameState>();

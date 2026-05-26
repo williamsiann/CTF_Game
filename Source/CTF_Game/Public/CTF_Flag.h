@@ -52,9 +52,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	class USphereComponent* InteractionSphere;
 
-	// El modelo 3D de la bandera
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class UStaticMeshComponent* FlagMesh;
+	class USkeletalMeshComponent* FlagMesh;
 
 	// --- Variables Replicadas ---
     
