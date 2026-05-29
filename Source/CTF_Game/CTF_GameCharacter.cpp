@@ -17,6 +17,9 @@
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "CTF_Weapon.h"
+#include "EnhancedInputSubsystems.h"
+#include "EnhancedInputComponent.h"
 
 ACTF_GameCharacter::ACTF_GameCharacter()
 {
@@ -53,25 +56,80 @@ ACTF_GameCharacter::ACTF_GameCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 }
 
+
 void ACTF_GameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Move);
-		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
+	if (!IsLocallyControlled()) return;
 
-		// Looking
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
-	}
-	else
+	UE_LOG(LogTemp, Warning, TEXT("=== SetupPlayerInputComponent ejecutado ==="));
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("Setup Input OK"));
+	
+    // 1. CARGAMOS EL MAPPING CONTEXT (Sin borrar nada del motor)
+    if (APlayerController* PlayerController = GetController<APlayerController>())
+    {
+       if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+       {
+          if (DefaultMappingContext)
+          {
+             Subsystem->AddMappingContext(DefaultMappingContext, 1);
+          }
+       }
+    }
+
+    // 2. TUS BINDINGS ORIGINALES INTACTOS
+    if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
+       
+       // Jumping
+       EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+       EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+       // Moving
+       EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Move);
+       EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
+
+       // Looking
+       EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
+
+       // Disparar
+       if (FireAction)
+       {
+       	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
+	FString::Printf(TEXT("FireAction: %s | AimAction: %s"),
+		FireAction ? TEXT("OK") : TEXT("NULL"),
+		AimAction  ? TEXT("OK") : TEXT("NULL")));
+
+       	if (FireAction)
+       		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::OnFire);
+       	else
+       		UE_LOG(LogTemp, Error, TEXT("FireAction es NULL - asignalo en el BP"));
+
+       	if (AimAction)
+       	{
+       		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::StartAiming);
+       		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ACTF_GameCharacter::StopAiming);
+       	}
+       	else
+       		UE_LOG(LogTemp, Error, TEXT("AimAction es NULL - asignalo en el BP"));
+       }
+
+       // Apuntar
+       if (AimAction)
+       {
+           EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::StartAiming);
+           EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ACTF_GameCharacter::StopAiming);
+       }
+    }
+    else
+    {
+       UE_LOG(LogCTF_Game, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+    }
+	if (GEngine)
 	{
-		UE_LOG(LogCTF_Game, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow, 
+			FString::Printf(TEXT("FireAction: %s | AimAction: %s"), 
+				FireAction ? TEXT("OK") : TEXT("NULL"),
+				AimAction  ? TEXT("OK") : TEXT("NULL")));
 	}
 }
 
@@ -144,6 +202,7 @@ void ACTF_GameCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ACTF_GameCharacter, bIsDead);
 	DOREPLIFETIME(ACTF_GameCharacter, Health);
 	DOREPLIFETIME(ACTF_GameCharacter, TeamID);
+	DOREPLIFETIME(ACTF_GameCharacter, EquippedWeapon);
 }
 
 // --- BeginPlay ---
@@ -168,6 +227,26 @@ void ACTF_GameCharacter::BeginPlay()
 	else if (TeamID == 1 && SkinEquipo1)
 	{
 		GetMesh()->SetSkeletalMeshAsset(SkinEquipo1);
+	}
+	if (HasAuthority() && DefaultWeaponClass)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+
+		EquippedWeapon = GetWorld()->SpawnActor<ACTF_Weapon>(DefaultWeaponClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+		if (EquippedWeapon)
+		{
+			// La atachamos al socket de la mano (asegurate de tener un socket llamado "Hand_R_Socket" o similar en tu esqueleto)
+			EquippedWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Hand_R_Socket"));
+		}
+	}
+	if (CameraBoom)
+	{
+		DefaultCameraOffset = CameraBoom->SocketOffset; 
+        
+		// Movemos la cámara 50 cm a la derecha (Y) y 50 cm hacia arriba (Z) para el hombro
+		AimingCameraOffset = FVector(0.f, 50.f, 50.f); 
 	}
 }
 
@@ -352,5 +431,81 @@ void ACTF_GameCharacter::OnRep_Team()
 	else if (TeamID == 1 && SkinEquipo1)
 	{
 		GetMesh()->SetSkeletalMeshAsset(SkinEquipo1);
+	}
+}
+
+void ACTF_GameCharacter::OnFire()
+{
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("OnFire() llegó"));
+    
+		if (!EquippedWeapon) 
+		{
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Sin arma"));
+			return;
+		}
+		if (bIsDead)
+		{
+			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Está muerto"));
+			return;
+		}
+
+	// Si no tenemos arma o estamos muertos, no disparamos
+	if (!EquippedWeapon || bIsDead) return;
+
+	// --- LA MATEMÁTICA DE TERCERA PERSONA (Raycast desde la cámara) ---
+	FVector CameraLoc = FollowCamera->GetComponentLocation();
+	FVector CameraForward = FollowCamera->GetForwardVector();
+	FVector TraceEnd = CameraLoc + (CameraForward * 10000.f); // Láser de 100 metros hacia adelante
+
+	FHitResult HitResult;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(this); // El láser ignora a Orion mismo
+
+	// Tiramos el láser invisible por el canal de Visibilidad
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, CameraLoc, TraceEnd, ECC_Visibility, TraceParams);
+
+	// Si el láser chocó contra una pared, ese es nuestro objetivo. Si no chocó contra nada, apuntamos al infinito
+	FVector TargetLocation = bHit ? HitResult.ImpactPoint : TraceEnd;
+
+	// Le mandamos ese punto de impacto exacto al Servidor
+	Server_Fire(TargetLocation);
+}
+
+void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocation)
+{
+	if (!EquippedWeapon) return;
+
+	// Buscamos desde dónde va a salir físicamente la bala (la posición actual de la pistola)
+	FVector MuzzleLocation = EquippedWeapon->GetActorLocation();
+
+	// Si querés que sea más pro, podés usar un socket en la punta del cañón de la pistola:
+	// FVector MuzzleLocation = EquippedWeapon->GetWeaponMesh()->GetSocketLocation(TEXT("MuzzleSocket"));
+
+	// Calculamos la rotación exacta desde la pistola hacia el punto de impacto de la cámara
+	FRotator LaunchRotation = (TargetLocation - MuzzleLocation).Rotation();
+
+	// Ejecutamos el disparo físico en el servidor
+	EquippedWeapon->Fire(MuzzleLocation, LaunchRotation, this);
+}
+
+void ACTF_GameCharacter::StartAiming()
+{
+	// DEBUG: Nos avisa si el código llegó hasta acá
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Magenta, TEXT("APUNTANDO: Clic derecho apretado"));
+
+	if (CameraBoom)
+	{
+		CameraBoom->SocketOffset = AimingCameraOffset;
+	}
+}
+
+void ACTF_GameCharacter::StopAiming()
+{
+	// DEBUG: Nos avisa si soltaste el botón
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("SOLTO EL APUNTADO: Clic derecho liberado"));
+
+	if (CameraBoom)
+	{
+		CameraBoom->SocketOffset = DefaultCameraOffset;
 	}
 }

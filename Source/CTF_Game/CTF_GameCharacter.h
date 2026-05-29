@@ -51,10 +51,27 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
+	/** Archivo maestro de controles (Mapping Context) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputMappingContext* DefaultMappingContext;
+
+	/** Aim Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
+	class UInputAction* AimAction;
+
+	// Guardamos la posición normal de la cámara
+	FVector DefaultCameraOffset;
+    
+	// La posición de la cámara cuando apuntamos (sobre el hombro)
+	FVector AimingCameraOffset;
+
+	/** Fire Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
+	class UInputAction* FireAction;
 public:
 
 	/** Constructor */
-	ACTF_GameCharacter();	
+	ACTF_GameCharacter();
 
 protected:
 
@@ -68,6 +85,8 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+
 
 public:
 
@@ -129,6 +148,27 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Skins")
 	USkeletalMesh* SkinEquipo1;
+
+	// Nos permite elegir qué Blueprint de arma va a usar Orion por defecto
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Combat")
+	TSubclassOf<class ACTF_Weapon> DefaultWeaponClass;
+
+	// Referencia al arma que tenemos equipada actualmente (se replica a todos)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "CTF Combat")
+	class ACTF_Weapon* EquippedWeapon;
+	
+	UFUNCTION()
+	void OnFire();
+	
+	UFUNCTION()
+	void StartAiming();
+	
+	UFUNCTION()
+	void StopAiming();
+
+	// El RPC para que el Servidor sea el que realmente physics-spawnee la bala
+	UFUNCTION(Server, Reliable)
+	void Server_Fire(const FVector& TargetLocation);
 
 protected:
 
