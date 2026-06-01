@@ -59,79 +59,34 @@ ACTF_GameCharacter::ACTF_GameCharacter()
 
 void ACTF_GameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	if (!IsLocallyControlled()) return;
-
-	UE_LOG(LogTemp, Warning, TEXT("=== SetupPlayerInputComponent ejecutado ==="));
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Green, TEXT("Setup Input OK"));
-	
-    // 1. CARGAMOS EL MAPPING CONTEXT (Sin borrar nada del motor)
-    if (APlayerController* PlayerController = GetController<APlayerController>())
-    {
-       if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-       {
-          if (DefaultMappingContext)
-          {
-             Subsystem->AddMappingContext(DefaultMappingContext, 1);
-          }
-       }
-    }
-
-    // 2. TUS BINDINGS ORIGINALES INTACTOS
-    if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-       
-       // Jumping
-       EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-       EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
-       // Moving
-       EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Move);
-       EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
-
-       // Looking
-       EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
-
-       // Disparar
-       if (FireAction)
-       {
-       	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow,
-	FString::Printf(TEXT("FireAction: %s | AimAction: %s"),
-		FireAction ? TEXT("OK") : TEXT("NULL"),
-		AimAction  ? TEXT("OK") : TEXT("NULL")));
-
-       	if (FireAction)
-       		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::OnFire);
-       	else
-       		UE_LOG(LogTemp, Error, TEXT("FireAction es NULL - asignalo en el BP"));
-
-       	if (AimAction)
-       	{
-       		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::StartAiming);
-       		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ACTF_GameCharacter::StopAiming);
-       	}
-       	else
-       		UE_LOG(LogTemp, Error, TEXT("AimAction es NULL - asignalo en el BP"));
-       }
-
-       // Apuntar
-       if (AimAction)
-       {
-           EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ACTF_GameCharacter::StartAiming);
-           EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ACTF_GameCharacter::StopAiming);
-       }
-    }
-    else
-    {
-       UE_LOG(LogCTF_Game, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-    }
-	if (GEngine)
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) 
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Yellow, 
-			FString::Printf(TEXT("FireAction: %s | AimAction: %s"), 
-				FireAction ? TEXT("OK") : TEXT("NULL"),
-				AimAction  ? TEXT("OK") : TEXT("NULL")));
+		// Jumping
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+
+		// Moving
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Move);
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
+
+		// Disparar - CAMBIO CLAVE: Usamos Triggered para que el mouse no falle al arrastrarse
+		if (FireAction)
+		{
+			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::OnFire);
+		}
+
+		// Apuntar - CAMBIO CLAVE: Usamos Triggered
+		if (AimAction)
+		{
+			EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::StartAiming);
+			EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ACTF_GameCharacter::StopAiming);
+		}
 	}
 }
+
 
 void ACTF_GameCharacter::Move(const FInputActionValue& Value)
 {
@@ -203,6 +158,7 @@ void ACTF_GameCharacter::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ACTF_GameCharacter, Health);
 	DOREPLIFETIME(ACTF_GameCharacter, TeamID);
 	DOREPLIFETIME(ACTF_GameCharacter, EquippedWeapon);
+	DOREPLIFETIME(ACTF_GameCharacter, bIsAiming);
 }
 
 // --- BeginPlay ---
@@ -247,6 +203,16 @@ void ACTF_GameCharacter::BeginPlay()
         
 		// Movemos la cámara 50 cm a la derecha (Y) y 50 cm hacia arriba (Z) para el hombro
 		AimingCameraOffset = FVector(0.f, 50.f, 50.f); 
+	}
+	if (IsLocallyControlled() && MiraWidgetClass)
+	{
+		MiraWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), MiraWidgetClass);
+		if (MiraWidgetInstance)
+		{
+			MiraWidgetInstance->AddToViewport();
+			// La ocultamos de entrada porque no estamos apuntando
+			MiraWidgetInstance->SetVisibility(ESlateVisibility::Hidden); 
+		}
 	}
 }
 
@@ -436,39 +402,33 @@ void ACTF_GameCharacter::OnRep_Team()
 
 void ACTF_GameCharacter::OnFire()
 {
-		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("OnFire() llegó"));
-    
-		if (!EquippedWeapon) 
-		{
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Sin arma"));
-			return;
-		}
-		if (bIsDead)
-		{
-			if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Está muerto"));
-			return;
-		}
+	// RASTREADOR LÍNEA 1: Esto ignora todo. Si hacés clic, tiene que salir en pantalla.
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("--- CLIC RECIBIDO EN C++ ---"));
 
-	// Si no tenemos arma o estamos muertos, no disparamos
-	if (!EquippedWeapon || bIsDead) return;
+	// Verificamos si el arma no cargó y avisamos, en vez de morir en silencio
+	if (!EquippedWeapon)
+	{
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("ERROR: Clic detectado, pero no hay arma equipada"));
+		return;
+	}
 
-	// --- LA MATEMÁTICA DE TERCERA PERSONA (Raycast desde la cámara) ---
-	FVector CameraLoc = FollowCamera->GetComponentLocation();
-	FVector CameraForward = FollowCamera->GetForwardVector();
-	FVector TraceEnd = CameraLoc + (CameraForward * 10000.f); // Láser de 100 metros hacia adelante
+	// Tu lógica original de trazado y disparo
+	if (FollowCamera)
+	{
+		FVector CameraLoc = FollowCamera->GetComponentLocation();
+		FVector CameraForward = FollowCamera->GetForwardVector();
+		FVector TraceEnd = CameraLoc + (CameraForward * 10000.f);
 
-	FHitResult HitResult;
-	FCollisionQueryParams TraceParams;
-	TraceParams.AddIgnoredActor(this); // El láser ignora a Orion mismo
+		FHitResult HitResult;
+		FCollisionQueryParams TraceParams;
+		TraceParams.AddIgnoredActor(this);
 
-	// Tiramos el láser invisible por el canal de Visibilidad
-	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, CameraLoc, TraceEnd, ECC_Visibility, TraceParams);
+		bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, CameraLoc, TraceEnd, ECC_Visibility, TraceParams);
+		FVector TargetLocation = bHit ? HitResult.ImpactPoint : TraceEnd;
 
-	// Si el láser chocó contra una pared, ese es nuestro objetivo. Si no chocó contra nada, apuntamos al infinito
-	FVector TargetLocation = bHit ? HitResult.ImpactPoint : TraceEnd;
-
-	// Le mandamos ese punto de impacto exacto al Servidor
-	Server_Fire(TargetLocation);
+		// Llamamos al servidor
+		Server_Fire(TargetLocation);
+	}
 }
 
 void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocation)
@@ -476,7 +436,7 @@ void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocatio
 	if (!EquippedWeapon) return;
 
 	// Buscamos desde dónde va a salir físicamente la bala (la posición actual de la pistola)
-	FVector MuzzleLocation = EquippedWeapon->GetActorLocation();
+	FVector MuzzleLocation = EquippedWeapon->GetRootComponent()->GetSocketLocation(TEXT("MuzzleSocket"));
 
 	// Si querés que sea más pro, podés usar un socket en la punta del cañón de la pistola:
 	// FVector MuzzleLocation = EquippedWeapon->GetWeaponMesh()->GetSocketLocation(TEXT("MuzzleSocket"));
@@ -490,22 +450,82 @@ void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocatio
 
 void ACTF_GameCharacter::StartAiming()
 {
-	// DEBUG: Nos avisa si el código llegó hasta acá
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Magenta, TEXT("APUNTANDO: Clic derecho apretado"));
+	bIsAiming = true; 
+	Server_SetAiming(true); 
 
 	if (CameraBoom)
 	{
 		CameraBoom->SocketOffset = AimingCameraOffset;
 	}
+
+	// --- NUEVO: Mostrar la mira ---
+	if (IsLocallyControlled() && MiraWidgetInstance)
+	{
+		MiraWidgetInstance->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
 void ACTF_GameCharacter::StopAiming()
 {
-	// DEBUG: Nos avisa si soltaste el botón
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("SOLTO EL APUNTADO: Clic derecho liberado"));
+	bIsAiming = false; 
+	Server_SetAiming(false); 
 
 	if (CameraBoom)
 	{
 		CameraBoom->SocketOffset = DefaultCameraOffset;
+	}
+
+	// --- NUEVO: Ocultar la mira ---
+	if (IsLocallyControlled() && MiraWidgetInstance)
+	{
+		MiraWidgetInstance->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void ACTF_GameCharacter::Server_SetAiming_Implementation(bool bIsAimingState)
+{
+	// El servidor recibe el aviso y actualiza la variable para todos
+	bIsAiming = bIsAimingState;
+}
+
+void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
+{
+	// 1. Le cortamos las piernas (frena la velocidad y anula el input)
+	GetCharacterMovement()->DisableMovement();
+
+	// 2. Congelamos el AnimGraph (queda duro como estatua)
+	if (GetMesh())
+	{
+		GetMesh()->bPauseAnims = true;
+	}
+
+	// 3. Arrancamos el timer para descongelarlo automáticamente
+	GetWorldTimerManager().SetTimer(
+		TimerHandle_Descongelar,
+		this,
+		&ACTF_GameCharacter::Descongelar,
+		Duracion,
+		false
+	);
+}
+
+void ACTF_GameCharacter::Descongelar()
+{
+	// 1. Le devolvemos el movimiento
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
+	// 2. Despausamos las animaciones para que vuelva a respirar
+	if (GetMesh())
+	{
+		GetMesh()->bPauseAnims = false;
+	}
+}
+
+void ACTF_GameCharacter::OnCongelado(float Duracion)
+{
+	// Solo el servidor tiene autoridad para ordenar un congelamiento general
+	if (HasAuthority())
+	{
+		Multicast_Congelar(Duracion);
 	}
 }

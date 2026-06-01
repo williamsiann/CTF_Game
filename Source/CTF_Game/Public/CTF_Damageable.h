@@ -23,4 +23,5 @@ public:
 
 	// Llamado cuando el actor hace respawn
 	virtual void OnRespawn() = 0;
+	virtual void OnCongelado(float Duracion) = 0;
 };

@@ -7,6 +7,8 @@
 #include "Logging/LogMacros.h"
 #include "CTF_Interactable.h"
 #include "CTF_Damageable.h"
+
+#include "Blueprint/UserWidget.h"
 #include "CTF_GameCharacter.generated.h"
 
 class USpringArmComponent;
@@ -68,6 +70,14 @@ protected:
 	/** Fire Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	class UInputAction* FireAction;
+
+	// Acá vamos a arrastrar tu WBP_Mira desde el editor
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> MiraWidgetClass;
+
+	// Esta es la mira física que se va a crear en la pantalla
+	UPROPERTY()
+	UUserWidget* MiraWidgetInstance;
 public:
 
 	/** Constructor */
@@ -157,24 +167,30 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "CTF Combat")
 	class ACTF_Weapon* EquippedWeapon;
 	
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void OnFire();
-	
-	UFUNCTION()
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void StartAiming();
-	
-	UFUNCTION()
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void StopAiming();
+
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Combat")
+	bool bIsAiming;
+	
+	// La función que le pide permiso al servidor (manteniendo el inglés)
+    UFUNCTION(Server, Reliable)
+    void Server_SetAiming(bool bIsAimingState);
 
 	// El RPC para que el Servidor sea el que realmente physics-spawnee la bala
 	UFUNCTION(Server, Reliable)
 	void Server_Fire(const FVector& TargetLocation);
 
-protected:
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_Congelar(float Duracion);
 
-	// Bandera que lleva actualmente
-	//UPROPERTY(Replicated)
-	//class ACTF_Flag* CarriedFlag;
+protected:
 
 	// Si está vivo
 	UPROPERTY(ReplicatedUsing = OnRep_IsDead)
@@ -217,6 +233,12 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	
+
+	// El reloj que va a contar el tiempo que pasa congelado
+	FTimerHandle TimerHandle_Descongelar;
+
+	// La función que lo devuelve a la normalidad
+	void Descongelar();
+	void OnCongelado(float Duracion);
 };
 

@@ -31,4 +31,5 @@ void ACTF_Weapon::Fire(const FVector& LaunchLocation, const FRotator& LaunchRota
 		// La línea mágica: Nace el proyectil de hielo en el servidor y viaja por la red
 		GetWorld()->SpawnActor<ACTF_IceProjectile>(ProjectileClass, LaunchLocation, LaunchRotation, SpawnParams);
 	}
+	
 }
