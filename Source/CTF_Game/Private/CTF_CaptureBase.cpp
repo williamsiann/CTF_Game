@@ -64,7 +64,7 @@ void ACTF_CaptureBase::NotifyActorBeginOverlap(AActor* OtherActor)
                             }
 
                             Player->Server_DropItem();
-                            FlagItem->SetActorLocationAndRotation(FlagItem->PosicionInicial, FlagItem->RotacionInicial);
+                           //FlagItem->SetActorLocationAndRotation(FlagItem->PosicionInicial, FlagItem->RotacionInicial);
                         }
                         else
                         {

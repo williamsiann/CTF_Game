@@ -54,6 +54,15 @@ ACTF_GameCharacter::ACTF_GameCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	bPickupCooldownActive = false;
+
+	
+	PrimaryActorTick.bCanEverTick = true;
+
+	// Inicializamos el hielo apagado
+	CurrentFreezeOpacity = 0.0f;
+	TargetFreezeOpacity = 0.0f;
 }
 
 
@@ -214,6 +223,18 @@ void ACTF_GameCharacter::BeginPlay()
 			MiraWidgetInstance->SetVisibility(ESlateVisibility::Hidden); 
 		}
 	}
+	// Creamos la pantalla de hielo solo para el jugador local
+	if (IsLocallyControlled() && PantallaCongeladaClass)
+	{
+		PantallaCongeladaInstance = CreateWidget<UUserWidget>(GetWorld(), PantallaCongeladaClass);
+		if (PantallaCongeladaInstance)
+		{
+			PantallaCongeladaInstance->AddToViewport();
+			// Usamos HitTestInvisible para que el hielo visual NO bloquee los clics del mouse
+			PantallaCongeladaInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+			PantallaCongeladaInstance->SetRenderOpacity(0.0f); // Transparente total
+		}
+	}
 }
 
 // --- ICTF_Interactable ---
@@ -309,6 +330,16 @@ void ACTF_GameCharacter::Server_DropItem_Implementation()
 	// Actualiza el PlayerState
 	ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>();
 	if (PS) PS->SetHasFlag(false);
+
+	bPickupCooldownActive = true;
+
+	GetWorldTimerManager().SetTimer(
+		TimerHandle_PickupCooldown,
+		this,
+		&ACTF_GameCharacter::FinalizarCooldownPickup,
+		5.0f, // Los 5 segundos de espera
+		false
+	);
     
 	UE_LOG(LogTemp, Log, TEXT("Item soltado correctamente"));
 }
@@ -341,6 +372,8 @@ void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 
 	// 1. Evitamos chocar contra nosotros mismos o procesar en los clientes
 	if (!HasAuthority() || !OtherActor || OtherActor == this) return;
+
+	if (bPickupCooldownActive) return;
     
 	// 2. Si ya llevamos la bandera, no levantamos otra (Las manos están llenas)
 	if (CarriedItem != nullptr) return;
@@ -361,8 +394,7 @@ void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 					// ¡Nunca se ejecuta el EquipItem!
 					if (FlagItem->FlagTeam == PS->GetTeam())
 					{
-						// Opcional: Podés poner el cartel naranja acá en vez de en la bandera
-						if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange, TEXT("¡Es tu bandera! Defendela."));
+						FlagItem->DevolverABase();
 						return; 
 					}
 				}
@@ -507,6 +539,10 @@ void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 		Duracion,
 		false
 	);
+	if (IsLocallyControlled())
+	{
+		TargetFreezeOpacity = 1.0f; // Destino: Hielo al 100%
+	}
 }
 
 void ACTF_GameCharacter::Descongelar()
@@ -519,6 +555,11 @@ void ACTF_GameCharacter::Descongelar()
 	{
 		GetMesh()->bPauseAnims = false;
 	}
+	// Le decimos al HUD local que empiece a derretirse
+	if (IsLocallyControlled())
+	{
+		TargetFreezeOpacity = 0.0f; // Destino: Desaparecer por completo
+	}
 }
 
 void ACTF_GameCharacter::OnCongelado(float Duracion)
@@ -526,6 +567,36 @@ void ACTF_GameCharacter::OnCongelado(float Duracion)
 	// Solo el servidor tiene autoridad para ordenar un congelamiento general
 	if (HasAuthority())
 	{
+		if (CarriedItem != nullptr)
+		{
+			Server_DropItem();
+		}
+		
 		Multicast_Congelar(Duracion);
+	}
+}
+
+void ACTF_GameCharacter::FinalizarCooldownPickup()
+{
+	bPickupCooldownActive = false;
+    
+	// Un mensajito verde para que sepas visualmente que ya pasó el tiempo
+	if (GEngine) 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("¡Ya podés volver a agarrar la bandera!"));
+	}
+}
+void ACTF_GameCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	// --- EFECTO GRADUAL DE CONGELAMIENTO ---
+	if (PantallaCongeladaInstance && !FMath::IsNearlyEqual(CurrentFreezeOpacity, TargetFreezeOpacity))
+	{
+		// El número 5.0f es la velocidad. Más alto = se congela más rápido. Más bajo = más lento.
+		CurrentFreezeOpacity = FMath::FInterpTo(CurrentFreezeOpacity, TargetFreezeOpacity, DeltaTime, 5.0f);
+        
+		// Le aplicamos la opacidad en vivo al Widget
+		PantallaCongeladaInstance->SetRenderOpacity(CurrentFreezeOpacity);
 	}
 }

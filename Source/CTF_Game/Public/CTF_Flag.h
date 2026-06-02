@@ -21,8 +21,8 @@ class CTF_GAME_API ACTF_Flag : public AActor, public ICTF_Interactable
     
 public:	
 	ACTF_Flag();
-	FVector PosicionInicial;
-	FRotator RotacionInicial;
+
+	void DevolverABase();
 
 protected:
 	virtual void BeginPlay() override;
@@ -64,4 +64,7 @@ protected:
 	UFUNCTION()
 	void OnRep_FlagState();
 	void OnDropped();
+
+	FVector PosicionInicial;
+	FRotator RotacionInicial;
 };

@@ -77,7 +77,29 @@ protected:
 
 	// Esta es la mira física que se va a crear en la pantalla
 	UPROPERTY()
+	
 	UUserWidget* MiraWidgetInstance;
+	// Interruptor que bloquea el agarre de objetos
+	bool bPickupCooldownActive;
+
+	// pantalla de hielo 
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> PantallaCongeladaClass;
+	
+	UPROPERTY()
+	UUserWidget* PantallaCongeladaInstance;
+
+	// Variables de control para el desvanecimiento (Fade)
+	float TargetFreezeOpacity;
+	float CurrentFreezeOpacity;
+
+	// El reloj que va a contar los 5 segundos de castigo
+	FTimerHandle TimerHandle_PickupCooldown;
+
+	// La función que se ejecuta cuando terminan los 5 segundos
+	void FinalizarCooldownPickup();
+	void Tick(float DeltaTime);
+
 public:
 
 	/** Constructor */

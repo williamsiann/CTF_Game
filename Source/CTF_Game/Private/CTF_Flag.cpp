@@ -120,20 +120,49 @@ void ACTF_Flag::OnRep_FlagState()
 
 void ACTF_Flag::OnDropped()
 {
-    // 1. Nos despegamos de la espalda del jugador
+    if (CurrentState == EFlagState::Idle_Base) return;
+
+    // 1. Calculamos hacia dónde escupir la bandera ANTES de despegarnos
+    FVector OffsetDesplazamiento = FVector::ZeroVector;
+    
+    // Le preguntamos a Unreal a quién estamos pegados (El personaje)
+    if (AActor* Portador = GetAttachParentActor())
+    {
+        // La tiramos 100 unidades (1 metro) hacia atrás y 50 hacia la derecha del portador
+        OffsetDesplazamiento = (Portador->GetActorForwardVector() * -100.f) + (Portador->GetActorRightVector() * 50.f);
+    }
+
+    // 2. Nos despegamos de la espalda del jugador
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 
-    // 2. Reactivamos el Actor por las dudas
+    // 3. Aplicamos el desplazamiento y la enderezamos al mismo tiempo
+    FVector NuevaUbicacion = GetActorLocation() + OffsetDesplazamiento;
+    FRotator NuevaRotacion = FRotator(0.f, GetActorRotation().Yaw, 0.f); // Recta, pero manteniendo hacia dónde miraba
+    
+    SetActorLocationAndRotation(NuevaUbicacion, NuevaRotacion);
+
+    // 4. Reactivamos el Actor por las dudas
     SetActorEnableCollision(true);
 
-    // 3. ¡LA CLAVE! Le devolvemos la vida a la esfera de colisión
+    // 5. Le devolvemos la vida a la esfera de colisión
     if (InteractionSphere)
     {
-        // QueryOnly es perfecto para Overlaps (esferas fantasma que detectan cuando las pisás)
         InteractionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly); 
     }
 
-    // 4. Opcional pero recomendado: Actualizamos el estado para que todos sepan que está en el piso
+    // 6. Actualizamos el estado para que todos sepan que está en el piso
     CurrentState = EFlagState::Dropped;
     OnRep_FlagState(); 
 }
+
+void ACTF_Flag::DevolverABase()
+{
+    if (HasAuthority())
+    {
+        // Teletransportamos la bandera a las coordenadas originales
+        SetActorLocationAndRotation(PosicionInicial, RotacionInicial);
+        
+        // Mensaje global (opcional) para avisar que la bandera volvió
+        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("¡Bandera recuperada y devuelta a la base!"));
+    }
+} 
