@@ -10,43 +10,75 @@ class UInputMappingContext;
 class UUserWidget;
 
 /**
- *  Basic PlayerController class for a third person game
- *  Manages input mappings
+ *  PlayerController base del proyecto.
+ *  Maneja input, controles móviles, y ahora también el HUD del CTF.
  */
 UCLASS(abstract)
 class ACTF_GamePlayerController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
+public:
+
+	// --- HUD / UI ---
+	void OnMatchStarted();
+	void OnMatchEnded(int32 WinnerTeam);
+	void UpdateHUDTime(float RemainingTime);
+	void UpdateHUDScore(int32 ScoreA, int32 ScoreB);
+	void UpdateHUDFlagStatus(bool bHasFlag);
+
 protected:
+
+	// --- Input ---
 
 	/** Input Mapping Contexts */
 	UPROPERTY(EditAnywhere, Category ="Input|Input Mappings")
 	TArray<UInputMappingContext*> DefaultMappingContexts;
 
-	/** Input Mapping Contexts */
+	/** Input Mapping Contexts excluidos en mobile */
 	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
 	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
 
-	/** Mobile controls widget to spawn */
+	// --- UI ---
+
+	/** Widget del HUD principal */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> HUDWidgetClass;
+
+	/** Widget de pantalla final (victoria/derrota) */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> EndGameWidgetClass;
+
+	/** Referencia viva al HUD */
+	UPROPERTY()
+	TObjectPtr<UUserWidget> HUDWidget;
+
+	// --- Mobile ---
+
+	/** Mobile controls widget a spawnear */
 	UPROPERTY(EditAnywhere, Category="Input|Touch Controls")
 	TSubclassOf<UUserWidget> MobileControlsWidgetClass;
 
-	/** Pointer to the mobile controls widget */
+	/** Puntero al widget de controles móviles */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
 
-	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
+	/** Si es true, fuerza controles táctiles aunque no sea mobile */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
 	bool bForceTouchControls = false;
 
-	/** Gameplay initialization */
+	// --- Overrides ---
 	virtual void BeginPlay() override;
-
-	/** Input mapping context setup */
 	virtual void SetupInputComponent() override;
 
-	/** Returns true if the player should use UMG touch controls */
+	// --- Helpers ---
 	bool ShouldUseTouchControls() const;
 
+	// --- Client RPCs ---
+
+	UFUNCTION(Client, Reliable)
+	void Client_CreateHUD();
+
+	UFUNCTION(Client, Reliable)
+	void Client_ShowEndScreen(int32 WinnerTeam);
 };

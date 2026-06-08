@@ -60,9 +60,10 @@ ACTF_GameCharacter::ACTF_GameCharacter()
 	
 	PrimaryActorTick.bCanEverTick = true;
 
-	// Inicializamos el hielo apagado
+	// Inicializo el hielo apagado
 	CurrentFreezeOpacity = 0.0f;
 	TargetFreezeOpacity = 0.0f;
+	TotalFreezeTime = 0.0f;
 }
 
 
@@ -80,14 +81,12 @@ void ACTF_GameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::Look);
-
-		// Disparar - CAMBIO CLAVE: Usamos Triggered para que el mouse no falle al arrastrarse
+		
 		if (FireAction)
 		{
 			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::OnFire);
 		}
-
-		// Apuntar - CAMBIO CLAVE: Usamos Triggered
+		
 		if (AimAction)
 		{
 			EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Triggered, this, &ACTF_GameCharacter::StartAiming);
@@ -178,8 +177,7 @@ void ACTF_GameCharacter::BeginPlay()
 	RespawnTime = 5.f;
 	Health      = MaxHealth; 
 	bIsDead     = false;
-
-	// Esto lee el equipo del servidor automáticamente, no tenés que configurar nada en el editor
+	
 	if (ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>())
 	{
 		TeamID = PS->GetTeam(); 
@@ -202,15 +200,13 @@ void ACTF_GameCharacter::BeginPlay()
 		EquippedWeapon = GetWorld()->SpawnActor<ACTF_Weapon>(DefaultWeaponClass, GetActorLocation(), GetActorRotation(), SpawnParams);
 		if (EquippedWeapon)
 		{
-			// La atachamos al socket de la mano (asegurate de tener un socket llamado "Hand_R_Socket" o similar en tu esqueleto)
 			EquippedWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Hand_R_Socket"));
 		}
 	}
 	if (CameraBoom)
 	{
 		DefaultCameraOffset = CameraBoom->SocketOffset; 
-        
-		// Movemos la cámara 50 cm a la derecha (Y) y 50 cm hacia arriba (Z) para el hombro
+  
 		AimingCameraOffset = FVector(0.f, 50.f, 50.f); 
 	}
 	if (IsLocallyControlled() && MiraWidgetClass)
@@ -299,8 +295,7 @@ void ACTF_GameCharacter::EquipItem(AActor* ItemToEquip)
 {
 	if (!HasAuthority() || !ItemToEquip) return;
 	CarriedItem = ItemToEquip;
-    
-	// Mantenemos tu lógica del PlayerState intacta
+	
 	ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>();
 	if (PS) PS->SetHasFlag(true);
 }
@@ -369,29 +364,25 @@ void ACTF_GameCharacter::OnRep_IsDead()
 void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 {
 	Super::NotifyActorBeginOverlap(OtherActor);
-
-	// 1. Evitamos chocar contra nosotros mismos o procesar en los clientes
+	
 	if (!HasAuthority() || !OtherActor || OtherActor == this) return;
 
 	if (bPickupCooldownActive) return;
-    
-	// 2. Si ya llevamos la bandera, no levantamos otra (Las manos están llenas)
+	
 	if (CarriedItem != nullptr) return;
-
-	// 3. Magia pura de interfaces: ¿Lo que pisamos es interactuable?
+	
 	if (ICTF_Interactable* InteractableItem = Cast<ICTF_Interactable>(OtherActor))
 	{
-		// 4. ¿El objeto permite que lo agarren ahora mismo?
+		
 		if (InteractableItem->CanInteract(this))
 		{
-			// --- 5. EL NUEVO FILTRO DE EQUIPO (Igual al de la base) ---
+			
 			if (ACTF_Flag* FlagItem = Cast<ACTF_Flag>(OtherActor))
 			{
 				ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>();
 				if (PS)
 				{
-					// Si la bandera es nuestra, el personaje la ignora y frena acá.
-					// ¡Nunca se ejecuta el EquipItem!
+				
 					if (FlagItem->FlagTeam == PS->GetTeam())
 					{
 						FlagItem->DevolverABase();
@@ -399,12 +390,9 @@ void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 					}
 				}
 			}
-			// -----------------------------------------------------------
-
-			// 6. Si pasamos todos los filtros (es bandera enemiga), la agarramos
+			
 			InteractableItem->OnInteract(this);
 
-			// 7. AHORA SÍ, el personaje se guarda la referencia de forma segura
 			EquipItem(OtherActor);
 		}
 	}
@@ -412,7 +400,6 @@ void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 
 void ACTF_GameCharacter::OnDropped()
 {
-	// Si alguien me choca y llevo algo, lo suelto
 	if (HasAuthority() && CarriedItem != nullptr)
 	{
 		Server_DropItem();
@@ -421,7 +408,6 @@ void ACTF_GameCharacter::OnDropped()
 
 void ACTF_GameCharacter::OnRep_Team()
 {
-	// Esta función cambia la malla del personaje según el equipo
 	if (TeamID == 0 && SkinEquipo0)
 	{
 		GetMesh()->SetSkeletalMeshAsset(SkinEquipo0);
@@ -434,17 +420,13 @@ void ACTF_GameCharacter::OnRep_Team()
 
 void ACTF_GameCharacter::OnFire()
 {
-	// RASTREADOR LÍNEA 1: Esto ignora todo. Si hacés clic, tiene que salir en pantalla.
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("--- CLIC RECIBIDO EN C++ ---"));
 
-	// Verificamos si el arma no cargó y avisamos, en vez de morir en silencio
 	if (!EquippedWeapon)
 	{
 		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("ERROR: Clic detectado, pero no hay arma equipada"));
 		return;
 	}
-
-	// Tu lógica original de trazado y disparo
+	//  lógica original de trazado y disparo
 	if (FollowCamera)
 	{
 		FVector CameraLoc = FollowCamera->GetComponentLocation();
@@ -466,17 +448,11 @@ void ACTF_GameCharacter::OnFire()
 void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocation)
 {
 	if (!EquippedWeapon) return;
-
-	// Buscamos desde dónde va a salir físicamente la bala (la posición actual de la pistola)
+	
 	FVector MuzzleLocation = EquippedWeapon->GetRootComponent()->GetSocketLocation(TEXT("MuzzleSocket"));
-
-	// Si querés que sea más pro, podés usar un socket en la punta del cañón de la pistola:
-	// FVector MuzzleLocation = EquippedWeapon->GetWeaponMesh()->GetSocketLocation(TEXT("MuzzleSocket"));
-
-	// Calculamos la rotación exacta desde la pistola hacia el punto de impacto de la cámara
+	
 	FRotator LaunchRotation = (TargetLocation - MuzzleLocation).Rotation();
 
-	// Ejecutamos el disparo físico en el servidor
 	EquippedWeapon->Fire(MuzzleLocation, LaunchRotation, this);
 }
 
@@ -489,8 +465,6 @@ void ACTF_GameCharacter::StartAiming()
 	{
 		CameraBoom->SocketOffset = AimingCameraOffset;
 	}
-
-	// --- NUEVO: Mostrar la mira ---
 	if (IsLocallyControlled() && MiraWidgetInstance)
 	{
 		MiraWidgetInstance->SetVisibility(ESlateVisibility::Visible);
@@ -506,8 +480,7 @@ void ACTF_GameCharacter::StopAiming()
 	{
 		CameraBoom->SocketOffset = DefaultCameraOffset;
 	}
-
-	// --- NUEVO: Ocultar la mira ---
+	
 	if (IsLocallyControlled() && MiraWidgetInstance)
 	{
 		MiraWidgetInstance->SetVisibility(ESlateVisibility::Hidden);
@@ -516,22 +489,18 @@ void ACTF_GameCharacter::StopAiming()
 
 void ACTF_GameCharacter::Server_SetAiming_Implementation(bool bIsAimingState)
 {
-	// El servidor recibe el aviso y actualiza la variable para todos
 	bIsAiming = bIsAimingState;
 }
 
 void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 {
-	// 1. Le cortamos las piernas (frena la velocidad y anula el input)
 	GetCharacterMovement()->DisableMovement();
-
-	// 2. Congelamos el AnimGraph (queda duro como estatua)
+	
 	if (GetMesh())
 	{
 		GetMesh()->bPauseAnims = true;
 	}
-
-	// 3. Arrancamos el timer para descongelarlo automáticamente
+	
 	GetWorldTimerManager().SetTimer(
 		TimerHandle_Descongelar,
 		this,
@@ -539,32 +508,39 @@ void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 		Duracion,
 		false
 	);
+	
+	GetWorldTimerManager().SetTimer(
+		TimerHandle_Descongelar,
+		this,
+		&ACTF_GameCharacter::Descongelar,
+		Duracion,
+		false
+	);
+
+	TotalFreezeTime = Duracion;
+	
 	if (IsLocallyControlled())
 	{
-		TargetFreezeOpacity = 1.0f; // Destino: Hielo al 100%
+		TargetFreezeOpacity = 1.0f; 
 	}
 }
 
 void ACTF_GameCharacter::Descongelar()
 {
-	// 1. Le devolvemos el movimiento
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-
-	// 2. Despausamos las animaciones para que vuelva a respirar
 	if (GetMesh())
 	{
 		GetMesh()->bPauseAnims = false;
 	}
-	// Le decimos al HUD local que empiece a derretirse
+
 	if (IsLocallyControlled())
 	{
-		TargetFreezeOpacity = 0.0f; // Destino: Desaparecer por completo
+		TargetFreezeOpacity = 0.0f; 
 	}
 }
 
 void ACTF_GameCharacter::OnCongelado(float Duracion)
 {
-	// Solo el servidor tiene autoridad para ordenar un congelamiento general
 	if (HasAuthority())
 	{
 		if (CarriedItem != nullptr)
@@ -580,7 +556,6 @@ void ACTF_GameCharacter::FinalizarCooldownPickup()
 {
 	bPickupCooldownActive = false;
     
-	// Un mensajito verde para que sepas visualmente que ya pasó el tiempo
 	if (GEngine) 
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("¡Ya podés volver a agarrar la bandera!"));
@@ -590,13 +565,24 @@ void ACTF_GameCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// --- EFECTO GRADUAL DE CONGELAMIENTO ---
 	if (PantallaCongeladaInstance && !FMath::IsNearlyEqual(CurrentFreezeOpacity, TargetFreezeOpacity))
 	{
-		// El número 5.0f es la velocidad. Más alto = se congela más rápido. Más bajo = más lento.
 		CurrentFreezeOpacity = FMath::FInterpTo(CurrentFreezeOpacity, TargetFreezeOpacity, DeltaTime, 5.0f);
         
-		// Le aplicamos la opacidad en vivo al Widget
 		PantallaCongeladaInstance->SetRenderOpacity(CurrentFreezeOpacity);
 	}
+}
+
+float ACTF_GameCharacter::GetFreezeProgress() const
+{
+	if (TotalFreezeTime <= 0.0f) 
+	{
+		return 0.0f;
+	}
+	float TiempoRestante = GetWorldTimerManager().GetTimerRemaining(TimerHandle_Descongelar);
+	if (TiempoRestante <= 0.0f) 
+	{
+		return 0.0f;
+	}
+	return TiempoRestante / TotalFreezeTime;
 }

@@ -67,7 +67,6 @@ void ACTF_Flag::OnInteract(AActor* Interactor)
 {
     if (!HasAuthority() || !Interactor) return;
     
-    // --- FILTRO NUEVO: Bloquear si es el mismo equipo ---
     // Pasamos el Interactor a APawn para poder pedirle su PlayerState
     if (APawn* Pawn = Cast<APawn>(Interactor))
     {
@@ -159,10 +158,24 @@ void ACTF_Flag::DevolverABase()
 {
     if (HasAuthority())
     {
-        // Teletransportamos la bandera a las coordenadas originales
+        // 1. Por precaución, aseguramos que esté despegada de cualquier jugador
+        DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+        // 2. La teletransportamos a sus coordenadas originales
         SetActorLocationAndRotation(PosicionInicial, RotacionInicial);
         
+        // 3. REACTIVAR COLISIONES: Clave para que se pueda volver a agarrar
+        SetActorEnableCollision(true);
+        if (InteractionSphere)
+        {
+            InteractionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly); 
+        }
+
+        // 4. RESETEAR ESTADO: Avisamos en red que volvió a estar esperando en base
+        CurrentState = EFlagState::Idle_Base;
+        OnRep_FlagState();
+
         // Mensaje global (opcional) para avisar que la bandera volvió
         if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("¡Bandera recuperada y devuelta a la base!"));
     }
-} 
+}

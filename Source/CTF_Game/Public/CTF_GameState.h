@@ -13,6 +13,7 @@ enum class EMatchState : uint8
     GameOver        UMETA(DisplayName = "Game Over")
 };
 
+
 UCLASS()
 class CTF_GAME_API ACTF_GameState : public AGameStateBase
 {
@@ -93,4 +94,11 @@ protected:
 
     UFUNCTION()
     void OnRep_WinnerTeam();
+
+    // --- UI DE FIN DE JUEGO ---
+    UPROPERTY(EditDefaultsOnly, Category = "UI|Final")
+    TSubclassOf<class UUserWidget> VictoriaWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI|Final")
+    TSubclassOf<class UUserWidget> DerrotaWidgetClass;
 };

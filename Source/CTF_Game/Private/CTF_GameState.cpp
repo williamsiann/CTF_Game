@@ -1,4 +1,6 @@
 #include "CTF_GameState.h"
+#include "Blueprint/UserWidget.h"
+#include "CTF_PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
 ACTF_GameState::ACTF_GameState()
@@ -32,13 +34,13 @@ void ACTF_GameState::GetLifetimeReplicatedProps(
 void ACTF_GameState::SetMatchState(EMatchState NewState)
 {
     MatchState = NewState;
-    OnRep_MatchState(); // llamamos manual en servidor
+    OnRep_MatchState(); 
 }
 
 void ACTF_GameState::SetRemainingTime(float NewTime)
 {
     RemainingTime = NewTime;
-    OnRep_RemainingTime(); // llamamos manual en servidor
+    OnRep_RemainingTime(); 
 }
 
 void ACTF_GameState::SetWinnerTeam(int32 TeamIndex)
@@ -49,16 +51,16 @@ void ACTF_GameState::SetWinnerTeam(int32 TeamIndex)
 
 void ACTF_GameState::AddScore(int32 TeamIndex)
 {
-    // ✅ CAMBIO APLICADO: Llamamos a las funciones OnRep manualmente en el servidor
-    // para que el servidor también actualice su propia UI si la tiene.
     if (TeamIndex == 0)
     {
         ScoreTeamA++;
-        OnRep_ScoreTeamA(); 
+        UE_LOG(LogTemp, Warning, TEXT(">>> AddScore llamado - TeamA: %d"), ScoreTeamA);
+        OnRep_ScoreTeamA();
     }
     else
     {
         ScoreTeamB++;
+        UE_LOG(LogTemp, Warning, TEXT(">>> AddScore llamado - TeamB: %d"), ScoreTeamB);
         OnRep_ScoreTeamB();
     }
 }
@@ -91,19 +93,15 @@ int32 ACTF_GameState::GetLeadingTeam() const
 
 void ACTF_GameState::OnRep_MatchState()
 {
-    // Los clientes reaccionan al cambio de estado
-    // Por ahora lo dejamos vacío, lo conectamos con la UI más adelante
     UE_LOG(LogTemp, Log, TEXT("MatchState changed: %d"), (int32)MatchState);
 }
 
 void ACTF_GameState::OnRep_RemainingTime()
 {
-    // Los clientes actualizan el HUD con el nuevo tiempo
-    // Lo conectamos con la UI más adelante
+
     UE_LOG(LogTemp, Log, TEXT("RemainingTime: %.0f"), RemainingTime);
 }
 
-// ✅ CAMBIO APLICADO: Implementación de OnRep_ScoreTeamA
 void ACTF_GameState::OnRep_ScoreTeamA()
 {
     // Avisamos a los Widgets que se tienen que redibujar
@@ -111,7 +109,7 @@ void ACTF_GameState::OnRep_ScoreTeamA()
     UE_LOG(LogTemp, Log, TEXT("Team A Score: %d"), ScoreTeamA);
 }
 
-// ✅ CAMBIO APLICADO: Implementación de OnRep_ScoreTeamB
+
 void ACTF_GameState::OnRep_ScoreTeamB()
 {
     // Avisamos a los Widgets que se tienen que redibujar
@@ -121,7 +119,37 @@ void ACTF_GameState::OnRep_ScoreTeamB()
 
 void ACTF_GameState::OnRep_WinnerTeam()
 {
-    // Los clientes muestran pantalla de victoria/derrota
-    UE_LOG(LogTemp, Log, TEXT("WinnerTeam: %d"), WinnerTeam);
+    
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+    if (PC && PC->IsLocalController())
+    {
+
+        if (ACTF_PlayerState* PS = PC->GetPlayerState<ACTF_PlayerState>())
+        {
+            int32 MiEquipo = PS->GetTeam();
+
+            if (MiEquipo == WinnerTeam)
+            {
+                if (VictoriaWidgetClass)
+                {
+                    UUserWidget* WinWidget = CreateWidget<UUserWidget>(PC, VictoriaWidgetClass);
+                    if (WinWidget) WinWidget->AddToViewport();
+                }
+            }
+            else
+            {
+                if (DerrotaWidgetClass)
+                {
+                    UUserWidget* LoseWidget = CreateWidget<UUserWidget>(PC, DerrotaWidgetClass);
+                    if (LoseWidget) LoseWidget->AddToViewport();
+                }
+            }
+            
+            PC->bShowMouseCursor = true;
+            FInputModeUIOnly InputMode;
+            PC->SetInputMode(InputMode);
+        }
+    }
 }
 

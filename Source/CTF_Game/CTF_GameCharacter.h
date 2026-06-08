@@ -100,6 +100,8 @@ protected:
 	void FinalizarCooldownPickup();
 	void Tick(float DeltaTime);
 
+	float TotalFreezeTime;
+	
 public:
 
 	/** Constructor */
@@ -121,6 +123,10 @@ protected:
 
 
 public:
+
+	// Función que el Widget va a usar para saber cómo dibujar la barra (de 0.0 a 1.0)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "CTF|Congelamiento")
+	float GetFreezeProgress() const;
 
 	// Evento nativo de Unreal que se dispara al chocar/pisar otro actor
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;

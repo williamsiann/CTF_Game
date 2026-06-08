@@ -54,8 +54,7 @@ void ACTF_IceProjectile::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, U
              GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("¡Impacto de hielo! Enemigo congelado."));
           }
        }
-
-       // Se rompe el cubito de hielo al chocar contra lo que sea
+       
        Destroy(); 
     }
 }
