@@ -1,7 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "CTF_GameState.h"
-#include "CTF_GameMode.h"
 #include "Net/UnrealNetwork.h"
 
 ACTF_GameState::ACTF_GameState()
@@ -52,8 +49,18 @@ void ACTF_GameState::SetWinnerTeam(int32 TeamIndex)
 
 void ACTF_GameState::AddScore(int32 TeamIndex)
 {
-    if (TeamIndex == 0) ScoreTeamA++;
-    else                ScoreTeamB++;
+    // ✅ CAMBIO APLICADO: Llamamos a las funciones OnRep manualmente en el servidor
+    // para que el servidor también actualice su propia UI si la tiene.
+    if (TeamIndex == 0)
+    {
+        ScoreTeamA++;
+        OnRep_ScoreTeamA(); 
+    }
+    else
+    {
+        ScoreTeamB++;
+        OnRep_ScoreTeamB();
+    }
 }
 
 void ACTF_GameState::AddPlayerToTeam(int32 TeamIndex)
@@ -96,8 +103,25 @@ void ACTF_GameState::OnRep_RemainingTime()
     UE_LOG(LogTemp, Log, TEXT("RemainingTime: %.0f"), RemainingTime);
 }
 
+// ✅ CAMBIO APLICADO: Implementación de OnRep_ScoreTeamA
+void ACTF_GameState::OnRep_ScoreTeamA()
+{
+    // Avisamos a los Widgets que se tienen que redibujar
+    OnScoreChangedEvent.Broadcast();
+    UE_LOG(LogTemp, Log, TEXT("Team A Score: %d"), ScoreTeamA);
+}
+
+// ✅ CAMBIO APLICADO: Implementación de OnRep_ScoreTeamB
+void ACTF_GameState::OnRep_ScoreTeamB()
+{
+    // Avisamos a los Widgets que se tienen que redibujar
+    OnScoreChangedEvent.Broadcast();
+    UE_LOG(LogTemp, Log, TEXT("Team B Score: %d"), ScoreTeamB);
+}
+
 void ACTF_GameState::OnRep_WinnerTeam()
 {
     // Los clientes muestran pantalla de victoria/derrota
     UE_LOG(LogTemp, Log, TEXT("WinnerTeam: %d"), WinnerTeam);
 }
+

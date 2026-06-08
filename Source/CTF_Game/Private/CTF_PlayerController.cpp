@@ -1,6 +1,6 @@
 #include "CTF_PlayerController.h"
 #include "Blueprint/UserWidget.h"
-
+#include "EnhancedInputSubsystems.h"
 
 ACTF_PlayerController::ACTF_PlayerController()
 {
@@ -11,7 +11,15 @@ void ACTF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Solo el cliente local crea su HUD
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = 
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		if (DefaultMappingContext)
+		{
+			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+		}
+	}
+
 	if (IsLocalController())
 	{
 		Client_CreateHUD();
@@ -78,5 +86,11 @@ void ACTF_PlayerController::Client_ShowEndScreen_Implementation(int32 WinnerTeam
 
 void ACTF_PlayerController::Client_CreateHUD_Implementation()
 {
-	CreateHUD();
+	if (!HUDWidgetClass) return;
+
+	HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
+	if (HUDWidget)
+	{
+		HUDWidget->AddToViewport();
+	}
 }

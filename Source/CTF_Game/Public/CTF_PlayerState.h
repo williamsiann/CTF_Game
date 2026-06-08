@@ -21,8 +21,11 @@ public:
 	void SetHasFlag(bool bNewHasFlag);
 
 	// --- Getters ---
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "CTF|PlayerState")
 	int32 GetTeam() const { return TeamIndex; }
+	
 	int32 GetIndividualScore() const { return IndividualScore; }
+	
 	bool GetHasFlag() const { return bHasFlag; }
 
 protected:
@@ -38,7 +41,7 @@ protected:
 	// Si el jugador tiene la bandera enemiga
 	UPROPERTY(ReplicatedUsing = OnRep_HasFlag)
 	bool bHasFlag;
-
+	
 	// --- RepNotify callbacks ---
 	UFUNCTION()
 	void OnRep_TeamIndex();

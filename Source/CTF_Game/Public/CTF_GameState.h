@@ -8,71 +8,89 @@
 UENUM(BlueprintType)
 enum class EMatchState : uint8
 {
-	WaitingToStart  UMETA(DisplayName = "Waiting To Start"),
-	InProgress      UMETA(DisplayName = "In Progress"),
-	GameOver        UMETA(DisplayName = "Game Over")
+    WaitingToStart  UMETA(DisplayName = "Waiting To Start"),
+    InProgress      UMETA(DisplayName = "In Progress"),
+    GameOver        UMETA(DisplayName = "Game Over")
 };
 
 UCLASS()
 class CTF_GAME_API ACTF_GameState : public AGameStateBase
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	ACTF_GameState();
+    ACTF_GameState();
 
-	virtual void GetLifetimeReplicatedProps(
-		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void GetLifetimeReplicatedProps(
+       TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnScoreChanged);
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnScoreChanged OnScoreChangedEvent;
 
-	// --- Setters (solo servidor los llama) ---
-	void SetMatchState(EMatchState NewState);
-	void SetRemainingTime(float NewTime);
-	void SetWinnerTeam(int32 TeamIndex);
-	void AddScore(int32 TeamIndex);
-	void AddPlayerToTeam(int32 TeamIndex);
+    // --- Setters (solo servidor los llama) ---
+    void SetMatchState(EMatchState NewState);
+    void SetRemainingTime(float NewTime);
+    void SetWinnerTeam(int32 TeamIndex);
+    void AddScore(int32 TeamIndex);
+    void AddPlayerToTeam(int32 TeamIndex);
 
-	// --- Getters ---
-	float GetRemainingTime() const { return RemainingTime; }
-	int32 GetTeamScore(int32 TeamIndex) const;
-	int32 GetTeamSize(int32 TeamIndex) const;
-	int32 GetLeadingTeam() const;
-	EMatchState GetMatchState() const { return MatchState; }
+    // --- Getters ---
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "CTF|GameState")
+    float GetRemainingTime() const { return RemainingTime; }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "CTF|GameState")
+    int32 GetTeamScore(int32 TeamIndex) const;
+    
+    int32 GetTeamSize(int32 TeamIndex) const;
+    int32 GetLeadingTeam() const;
+    EMatchState GetMatchState() const { return MatchState; }
 
 protected:
 
-	// Estado de la partida - replicado
-	UPROPERTY(ReplicatedUsing = OnRep_MatchState)
-	EMatchState MatchState;
+    // Estado de la partida - replicado
+    UPROPERTY(ReplicatedUsing = OnRep_MatchState)
+    EMatchState MatchState;
 
-	// Tiempo restante - replicado con RepNotify ✅
-	UPROPERTY(ReplicatedUsing = OnRep_RemainingTime)
-	float RemainingTime;
+    // Tiempo restante - replicado con RepNotify ✅
+    UPROPERTY(ReplicatedUsing = OnRep_RemainingTime)
+    float RemainingTime;
 
-	// Puntajes de equipos - replicados
-	UPROPERTY(Replicated)
-	int32 ScoreTeamA;
+    // ✅ CAMBIO APLICADO: Agregado ReplicatedUsing para Team A
+    UPROPERTY(ReplicatedUsing = OnRep_ScoreTeamA)
+    int32 ScoreTeamA;
 
-	UPROPERTY(Replicated)
-	int32 ScoreTeamB;
+    // ✅ CAMBIO APLICADO: Agregado ReplicatedUsing para Team B
+    UPROPERTY(ReplicatedUsing = OnRep_ScoreTeamB)
+    int32 ScoreTeamB;
 
-	// Cantidad de jugadores por equipo
-	UPROPERTY(Replicated)
-	int32 TeamASize;
+    // Cantidad de jugadores por equipo
+    UPROPERTY(Replicated)
+    int32 TeamASize;
 
-	UPROPERTY(Replicated)
-	int32 TeamBSize;
+    // Cantidad de jugadores por equipo
+    UPROPERTY(Replicated)
+    int32 TeamBSize;
 
-	// Equipo ganador
-	UPROPERTY(ReplicatedUsing = OnRep_WinnerTeam)
-	int32 WinnerTeam;
+    // Equipo ganador
+    UPROPERTY(ReplicatedUsing = OnRep_WinnerTeam)
+    int32 WinnerTeam;
 
-	// --- RepNotify callbacks ---
-	UFUNCTION()
-	void OnRep_MatchState();
+    // --- RepNotify callbacks ---
+    UFUNCTION()
+    void OnRep_MatchState();
 
-	UFUNCTION()
-	void OnRep_RemainingTime();  // ✅ RepNotify requerido
+    UFUNCTION()
+    void OnRep_RemainingTime();
 
-	UFUNCTION()
-	void OnRep_WinnerTeam();
+    // ✅ CAMBIO APLICADO: Declaración del OnRep para Team A
+    UFUNCTION()
+    void OnRep_ScoreTeamA();
+
+    // ✅ CAMBIO APLICADO: Declaración del OnRep para Team B
+    UFUNCTION()
+    void OnRep_ScoreTeamB();
+
+    UFUNCTION()
+    void OnRep_WinnerTeam();
 };
