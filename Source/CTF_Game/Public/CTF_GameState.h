@@ -101,4 +101,7 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "UI|Final")
     TSubclassOf<class UUserWidget> DerrotaWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI|Final")
+    TSubclassOf<class UUserWidget> EmpateWidgetClass;
 };

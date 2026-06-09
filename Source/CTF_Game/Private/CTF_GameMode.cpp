@@ -13,7 +13,7 @@
 ACTF_GameMode::ACTF_GameMode()
 {
     ScoreToWin = 3;
-    MatchTime = 300.f; // 5 minutos
+    MatchTime = 1200.f; // ← 20 minutos (20 * 60)
 }
 
 void ACTF_GameMode::PostLogin(APlayerController* NewPlayer)
@@ -88,8 +88,9 @@ void ACTF_GameMode::OnMatchTimerTick()
 
     if (NewTime <= 0.f)
     {
-        int32 Winner = GS->GetLeadingTeam();
-        EndMatch(Winner);
+        // Tiempo agotado → empate → ambos pierden
+        MatchEndReason = EMatchEndReason::Draw;
+        EndMatch(-1); // -1 = nadie gana
     }
 }
 
@@ -130,18 +131,16 @@ void ACTF_GameMode::EndMatch(int32 WinnerTeam)
     if (!GS) return;
 
     GS->SetMatchState(EMatchState::GameOver);
-    GS->SetWinnerTeam(WinnerTeam);
-    
+    GS->SetWinnerTeam(WinnerTeam); // -1 = empate
 
     UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 0.2f);
 
-    // ← Cambiado: casteamos a ACTF_GamePlayerController
     for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
     {
         ACTF_GamePlayerController* PC = Cast<ACTF_GamePlayerController>(It->Get());
         if (PC)
         {
-            PC->OnMatchEnded(WinnerTeam);
+            PC->OnMatchEnded(WinnerTeam); // -1 le llega a todos → muestran derrota
         }
     }
 }

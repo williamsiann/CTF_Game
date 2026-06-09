@@ -119,37 +119,39 @@ void ACTF_GameState::OnRep_ScoreTeamB()
 
 void ACTF_GameState::OnRep_WinnerTeam()
 {
-    
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (!PC || !PC->IsLocalController()) return;
 
-    if (PC && PC->IsLocalController())
+    ACTF_PlayerState* PS = PC->GetPlayerState<ACTF_PlayerState>();
+    if (!PS) return;
+
+    int32 MiEquipo = PS->GetTeam();
+
+    // WinnerTeam == -1 → tiempo agotado → todos pierden
+    // WinnerTeam == MiEquipo → victoria
+    // cualquier otro caso → derrota normal
+    bool bGane = (WinnerTeam != -1) && (MiEquipo == WinnerTeam);
+
+    if (bGane)
     {
-
-        if (ACTF_PlayerState* PS = PC->GetPlayerState<ACTF_PlayerState>())
+        if (VictoriaWidgetClass)
         {
-            int32 MiEquipo = PS->GetTeam();
-
-            if (MiEquipo == WinnerTeam)
-            {
-                if (VictoriaWidgetClass)
-                {
-                    UUserWidget* WinWidget = CreateWidget<UUserWidget>(PC, VictoriaWidgetClass);
-                    if (WinWidget) WinWidget->AddToViewport();
-                }
-            }
-            else
-            {
-                if (DerrotaWidgetClass)
-                {
-                    UUserWidget* LoseWidget = CreateWidget<UUserWidget>(PC, DerrotaWidgetClass);
-                    if (LoseWidget) LoseWidget->AddToViewport();
-                }
-            }
-            
-            PC->bShowMouseCursor = true;
-            FInputModeUIOnly InputMode;
-            PC->SetInputMode(InputMode);
+            UUserWidget* WinWidget = CreateWidget<UUserWidget>(PC, VictoriaWidgetClass);
+            if (WinWidget) WinWidget->AddToViewport();
         }
     }
+    else
+    {
+        // Cubre tanto derrota normal como empate por tiempo (WinnerTeam == -1)
+        if (DerrotaWidgetClass)
+        {
+            UUserWidget* LoseWidget = CreateWidget<UUserWidget>(PC, DerrotaWidgetClass);
+            if (LoseWidget) LoseWidget->AddToViewport();
+        }
+    }
+
+    PC->bShowMouseCursor = true;
+    FInputModeUIOnly InputMode;
+    PC->SetInputMode(InputMode);
 }
 

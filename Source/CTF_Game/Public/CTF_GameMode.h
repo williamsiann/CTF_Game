@@ -4,6 +4,13 @@
 #include "GameFramework/GameModeBase.h"
 #include "CTF_GameMode.generated.h"
 
+UENUM(BlueprintType)
+enum class EMatchEndReason : uint8
+{
+    TeamWon     UMETA(DisplayName = "Team Won"),
+    Draw        UMETA(DisplayName = "Draw - Time Up")
+};
+
 UCLASS()
 class CTF_GAME_API ACTF_GameMode : public AGameModeBase
 {
@@ -52,4 +59,7 @@ protected:
     void OnMatchTimerTick();
 
     virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+    UPROPERTY(BlueprintReadOnly, Category = "CTF Rules")
+    EMatchEndReason MatchEndReason;
 };
