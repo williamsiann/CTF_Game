@@ -6,6 +6,8 @@
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerStart.h"
+#include "EngineUtils.h"
 #include "CTF_GameCharacter.h"
 
 ACTF_GameMode::ACTF_GameMode()
@@ -52,6 +54,11 @@ void ACTF_GameMode::AssignTeam(APlayerController* NewPlayer)
     {
         GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, LoginMsg);
     }
+    PS->SetTeam(AssignedTeam);
+    GS->AddPlayerToTeam(AssignedTeam);
+
+    // Forzamos respawn para que use el PlayerStart correcto
+    RestartPlayer(NewPlayer);
 }
 
 void ACTF_GameMode::StartMatch()
@@ -137,4 +144,39 @@ void ACTF_GameMode::EndMatch(int32 WinnerTeam)
             PC->OnMatchEnded(WinnerTeam);
         }
     }
+}
+
+AActor* ACTF_GameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+    // Obtenemos el equipo del jugador
+    int32 TeamToSpawn = -1;
+
+    if (ACTF_PlayerState* PS = Player->GetPlayerState<ACTF_PlayerState>())
+    {
+        TeamToSpawn = PS->GetTeam();
+    }
+
+    // Armamos el tag que buscamos: "Team0" o "Team1"
+    FName TargetTag = (TeamToSpawn == 0) ? FName("Team0") : FName("Team1");
+
+    // Recorremos todos los PlayerStart del nivel
+    TArray<AActor*> Candidates;
+    for (TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
+    {
+        APlayerStart* PS_Actor = *It;
+        if (PS_Actor->PlayerStartTag == TargetTag)
+        {
+            Candidates.Add(PS_Actor);
+        }
+    }
+
+    // Si encontramos alguno, elegimos uno al azar
+    if (Candidates.Num() > 0)
+    {
+        int32 RandomIndex = FMath::RandRange(0, Candidates.Num() - 1);
+        return Candidates[RandomIndex];
+    }
+
+    // Fallback: comportamiento default de Unreal
+    return Super::ChoosePlayerStart_Implementation(Player);
 }

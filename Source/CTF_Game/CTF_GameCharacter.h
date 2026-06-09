@@ -206,8 +206,6 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Combat")
 	bool bIsAiming;
-	
-	// La función que le pide permiso al servidor (manteniendo el inglés)
     UFUNCTION(Server, Reliable)
     void Server_SetAiming(bool bIsAimingState);
 
@@ -250,11 +248,11 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_Interact(AActor* Target);
 
-	// NetMulticast para efectos de muerte ✅
+	// NetMulticast para efectos de muerte 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnDeath();
 
-	// NetMulticast para efectos de respawn ✅
+	// NetMulticast para efectos de respawn 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnRespawn();
 

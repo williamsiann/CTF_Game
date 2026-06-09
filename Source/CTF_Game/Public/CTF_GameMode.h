@@ -50,4 +50,6 @@ protected:
 
     // Tick del timer
     void OnMatchTimerTick();
+
+    virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 };
