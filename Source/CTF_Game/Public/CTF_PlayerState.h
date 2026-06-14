@@ -30,7 +30,7 @@ public:
 
 protected:
 
-	// Equipo del jugador (0 = rojo, 1 = azul)
+	// Equipo del jugador (0 = verde, 1 = Negro)
 	UPROPERTY(ReplicatedUsing = OnRep_TeamIndex)
 	int32 TeamIndex;
 

@@ -41,14 +41,11 @@ void ACTF_PlayerState::SetHasFlag(bool bNewHasFlag)
 
 void ACTF_PlayerState::OnRep_TeamIndex()
 {
-	// Cliente reacciona al cambio de equipo
-	// Más adelante: cambiar color del personaje según equipo
 	UE_LOG(LogTemp, Log, TEXT("Player team assigned: %d"), TeamIndex);
 }
 
 void ACTF_PlayerState::OnRep_HasFlag()
 {
 	// Cliente reacciona a tomar/soltar bandera
-	// Más adelante: actualizar HUD
 	UE_LOG(LogTemp, Log, TEXT("Player has flag: %s"), bHasFlag ? TEXT("Yes") : TEXT("No"));
 }

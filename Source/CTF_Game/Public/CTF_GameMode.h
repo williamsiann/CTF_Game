@@ -31,7 +31,7 @@ public:
     // Termina la partida
     void EndMatch(int32 WinnerTeam);
 
-    // Puntos necesarios para ganar (por defecto 3)
+    // Puntos necesarios para ganar
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CTF Rules")
     int32 MaxScoreToWin = 3;
 

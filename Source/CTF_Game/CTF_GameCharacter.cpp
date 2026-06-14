@@ -297,7 +297,7 @@ void ACTF_GameCharacter::EquipItem(AActor* ItemToEquip)
 	CarriedItem = ItemToEquip;
 	
 	ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>();
-	if (PS) PS->SetHasFlag(true);
+	if (PS) PS->SetHasFlag(true); //PlayerState Replica en todos que esta equipada
 }
 
 // --- Server RPCs ---
@@ -376,9 +376,10 @@ void ACTF_GameCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 		
 		if (InteractableItem->CanInteract(this))
 		{
-			
+			//Equipo rival equipa
 			if (ACTF_Flag* FlagItem = Cast<ACTF_Flag>(OtherActor))
 			{
+				//Equipo propio devuelve a base
 				ACTF_PlayerState* PS = GetPlayerState<ACTF_PlayerState>();
 				if (PS)
 				{
@@ -420,7 +421,6 @@ void ACTF_GameCharacter::OnRep_Team()
 
 void ACTF_GameCharacter::OnFire()
 {
-
 	if (!EquippedWeapon)
 	{
 		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("ERROR: Clic detectado, pero no hay arma equipada"));
@@ -450,9 +450,11 @@ void ACTF_GameCharacter::Server_Fire_Implementation(const FVector& TargetLocatio
 	if (!EquippedWeapon) return;
 	
 	FVector MuzzleLocation = EquippedWeapon->GetRootComponent()->GetSocketLocation(TEXT("MuzzleSocket"));
-	
+
+	//calcula la trayectoria 
 	FRotator LaunchRotation = (TargetLocation - MuzzleLocation).Rotation();
 
+	//Dispara en el server
 	EquippedWeapon->Fire(MuzzleLocation, LaunchRotation, this);
 }
 
@@ -492,6 +494,18 @@ void ACTF_GameCharacter::Server_SetAiming_Implementation(bool bIsAimingState)
 	bIsAiming = bIsAimingState;
 }
 
+void ACTF_GameCharacter::OnCongelado(float Duracion)
+{
+	if (HasAuthority())
+	{
+		if (CarriedItem != nullptr)
+		{
+			Server_DropItem();
+		}
+		Multicast_Congelar(Duracion);
+	}
+}
+
 void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 {
 	GetCharacterMovement()->DisableMovement();
@@ -500,14 +514,6 @@ void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 	{
 		GetMesh()->bPauseAnims = true;
 	}
-	
-	GetWorldTimerManager().SetTimer(
-		TimerHandle_Descongelar,
-		this,
-		&ACTF_GameCharacter::Descongelar,
-		Duracion,
-		false
-	);
 	
 	GetWorldTimerManager().SetTimer(
 		TimerHandle_Descongelar,
@@ -525,6 +531,42 @@ void ACTF_GameCharacter::Multicast_Congelar_Implementation(float Duracion)
 	}
 }
 
+float ACTF_GameCharacter::GetFreezeProgress() const
+{
+	if (TotalFreezeTime <= 0.0f) 
+	{
+		return 0.0f;
+	}
+	float TiempoRestante = GetWorldTimerManager().GetTimerRemaining(TimerHandle_Descongelar);
+	if (TiempoRestante <= 0.0f) 
+	{
+		return 0.0f;
+	}
+	return TiempoRestante / TotalFreezeTime;
+}
+
+void ACTF_GameCharacter::FinalizarCooldownPickup()
+{
+	bPickupCooldownActive = false;
+    
+	if (GEngine) 
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("¡Ya podés volver a agarrar la bandera!"));
+	}
+}
+
+void ACTF_GameCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (PantallaCongeladaInstance && !FMath::IsNearlyEqual(CurrentFreezeOpacity, TargetFreezeOpacity))
+	{
+		CurrentFreezeOpacity = FMath::FInterpTo(CurrentFreezeOpacity, TargetFreezeOpacity, DeltaTime, 5.0f);
+        
+		PantallaCongeladaInstance->SetRenderOpacity(CurrentFreezeOpacity);
+	}
+}
+
 void ACTF_GameCharacter::Descongelar()
 {
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -539,50 +581,3 @@ void ACTF_GameCharacter::Descongelar()
 	}
 }
 
-void ACTF_GameCharacter::OnCongelado(float Duracion)
-{
-	if (HasAuthority())
-	{
-		if (CarriedItem != nullptr)
-		{
-			Server_DropItem();
-		}
-		
-		Multicast_Congelar(Duracion);
-	}
-}
-
-void ACTF_GameCharacter::FinalizarCooldownPickup()
-{
-	bPickupCooldownActive = false;
-    
-	if (GEngine) 
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("¡Ya podés volver a agarrar la bandera!"));
-	}
-}
-void ACTF_GameCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (PantallaCongeladaInstance && !FMath::IsNearlyEqual(CurrentFreezeOpacity, TargetFreezeOpacity))
-	{
-		CurrentFreezeOpacity = FMath::FInterpTo(CurrentFreezeOpacity, TargetFreezeOpacity, DeltaTime, 5.0f);
-        
-		PantallaCongeladaInstance->SetRenderOpacity(CurrentFreezeOpacity);
-	}
-}
-
-float ACTF_GameCharacter::GetFreezeProgress() const
-{
-	if (TotalFreezeTime <= 0.0f) 
-	{
-		return 0.0f;
-	}
-	float TiempoRestante = GetWorldTimerManager().GetTimerRemaining(TimerHandle_Descongelar);
-	if (TiempoRestante <= 0.0f) 
-	{
-		return 0.0f;
-	}
-	return TiempoRestante / TotalFreezeTime;
-}

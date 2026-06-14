@@ -8,38 +8,38 @@
 ACTF_IceProjectile::ACTF_IceProjectile()
 {
     PrimaryActorTick.bCanEverTick = false;
-
-    // Le avisamos al motor que este objeto existe en la red
+   
     bReplicates = true;
-    // Le avisamos que su movimiento (el vuelo de la bala) se tiene que sincronizar
+   
     SetReplicateMovement(true);
 
-    // 1. Configuramos la esfera de colisión
+    // Esfera de colisión
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
     CollisionComponent->InitSphereRadius(15.0f);
     CollisionComponent->SetCollisionProfileName(TEXT("BlockAllDynamic")); // Bloquea y choca contra todo
     RootComponent = CollisionComponent;
 
-    // 2. Configuramos el comportamiento de vuelo
+    // Comportamiento de vuelo
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
     ProjectileMovement->UpdatedComponent = CollisionComponent;
     ProjectileMovement->InitialSpeed = 3000.f; // Velocidad de salida
     ProjectileMovement->MaxSpeed = 3000.f;
     ProjectileMovement->bRotationFollowsVelocity = true;
-    ProjectileMovement->bShouldBounce = true; // Hielo que rebota en las paredes
+    ProjectileMovement->bShouldBounce = true;
 
-    // 3. Limpieza automática: el proyectil se autodestruye a los 3 segundos de nacer
+    // autodestruye 3s
     InitialLifeSpan = 3.0f; 
 }
 
+// Avisa de la colicion
 void ACTF_IceProjectile::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
 {
     Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
 
-    // Filtro de seguridad: Que haya chocado con algo válido, y que no sea Orion mismo (el que disparó)
+    // que haya chocado con algo válido, y que no sea el mismo 
     if (Other && Other != GetInstigator())
     {
-       // MAGIA LIMPIA: Casteamos a la Interfaz, NO a la clase del personaje.
+       // Casteo a la Interfaz
        if (ICTF_Damageable* Target = Cast<ICTF_Damageable>(Other))
        {
           // El servidor es el único que tiene autoridad para ejecutar estados de red importantes
@@ -48,13 +48,7 @@ void ACTF_IceProjectile::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, U
              // Ejecutamos la función de la interfaz. Congelamos por 3 segundos.
              Target->OnCongelado(3.0f);
           }
-
-          if (GEngine) 
-          {
-             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("¡Impacto de hielo! Enemigo congelado."));
-          }
        }
-       
        Destroy(); 
     }
 }

@@ -45,18 +45,7 @@ void ACTF_GameMode::AssignTeam(APlayerController* NewPlayer)
         MiPersonaje->TeamID = AssignedTeam;
         MiPersonaje->OnRep_Team();
     }
-
-    FString LoginMsg = FString::Printf(
-        TEXT("¡Jugador %s asignado al EQUIPO %d!"), *NewPlayer->GetName(), AssignedTeam);
-    UE_LOG(LogTemp, Warning, TEXT("%s"), *LoginMsg);
-
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, LoginMsg);
-    }
-    PS->SetTeam(AssignedTeam);
-    GS->AddPlayerToTeam(AssignedTeam);
-
+    
     // Forzamos respawn para que use el PlayerStart correcto
     RestartPlayer(NewPlayer);
 }
@@ -88,7 +77,7 @@ void ACTF_GameMode::OnMatchTimerTick()
 
     if (NewTime <= 0.f)
     {
-        // Tiempo agotado → empate → ambos pierden
+        // Tiempo terminado empate 
         MatchEndReason = EMatchEndReason::Draw;
         EndMatch(-1); // -1 = nadie gana
     }
@@ -100,14 +89,6 @@ void ACTF_GameMode::OnFlagCaptured(int32 TeamIndex)
     if (!GS) return;
 
     GS->AddScore(TeamIndex);
-
-    if (GEngine)
-    {
-        FString ScoreMsg = FString::Printf(
-            TEXT("MARCADOR GLOBAL ➔ Equipo 0: %d | Equipo 1: %d"),
-            GS->GetTeamScore(0), GS->GetTeamScore(1));
-        GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Emerald, ScoreMsg);
-    }
 
     CheckVictoryCondition(TeamIndex);
 }
