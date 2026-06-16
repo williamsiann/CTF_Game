@@ -39,6 +39,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
 	TArray<UInputMappingContext*> MobileExcludedMappingContexts;
 
+	UFUNCTION(Client, Reliable)
+	void Client_ShowEndScreen(int32 WinnerTeam);
+
 	// --- UI ---
 
 	/** Widget del HUD principal */
@@ -62,8 +65,6 @@ protected:
 	/** Puntero al widget de controles móviles */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
-
-	/** Si es true, fuerza controles táctiles aunque no sea mobile */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
 	bool bForceTouchControls = false;
 
@@ -76,9 +77,8 @@ protected:
 
 	// --- Client RPCs ---
 
+	// --- Client RPCs ---
 	UFUNCTION(Client, Reliable)
 	void Client_CreateHUD();
-
-	UFUNCTION(Client, Reliable)
-	void Client_ShowEndScreen(int32 WinnerTeam);
+	
 };
