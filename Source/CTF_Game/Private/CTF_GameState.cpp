@@ -11,10 +11,9 @@ ACTF_GameState::ACTF_GameState()
     ScoreTeamB  = 0;
     TeamASize   = 0;
     TeamBSize   = 0;
-    WinnerTeam  = -1; // -1 = nadie ganó todavía
+    WinnerTeam  = -1;
 }
 
-// Registramos todas las variables replicadas
 void ACTF_GameState::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -104,7 +103,6 @@ void ACTF_GameState::OnRep_RemainingTime()
 
 void ACTF_GameState::OnRep_ScoreTeamA()
 {
-    // Avisamos a los Widgets que se tienen que redibujar
     OnScoreChangedEvent.Broadcast();
     UE_LOG(LogTemp, Log, TEXT("Team A Score: %d"), ScoreTeamA);
 }
@@ -112,7 +110,6 @@ void ACTF_GameState::OnRep_ScoreTeamA()
 
 void ACTF_GameState::OnRep_ScoreTeamB()
 {
-    // Avisamos a los Widgets que se tienen que redibujar
     OnScoreChangedEvent.Broadcast();
     UE_LOG(LogTemp, Log, TEXT("Team B Score: %d"), ScoreTeamB);
 }
@@ -127,26 +124,29 @@ void ACTF_GameState::OnRep_WinnerTeam()
 
     int32 MiEquipo = PS->GetTeam();
 
-    // WinnerTeam == -1 → tiempo agotado → todos pierden
-    // WinnerTeam == MiEquipo → victoria
-    // cualquier otro caso → derrota normal
-    bool bGane = (WinnerTeam != -1) && (MiEquipo == WinnerTeam);
-
-    if (bGane)
+    if (WinnerTeam == -1)
+    {
+        // Empate por tiempo
+        if (EmpateWidgetClass)
+        {
+            UUserWidget* W = CreateWidget<UUserWidget>(PC, EmpateWidgetClass);
+            if (W) W->AddToViewport();
+        }
+    }
+    else if (MiEquipo == WinnerTeam)
     {
         if (VictoriaWidgetClass)
         {
-            UUserWidget* WinWidget = CreateWidget<UUserWidget>(PC, VictoriaWidgetClass);
-            if (WinWidget) WinWidget->AddToViewport();
+            UUserWidget* W = CreateWidget<UUserWidget>(PC, VictoriaWidgetClass);
+            if (W) W->AddToViewport();
         }
     }
     else
     {
-        // Cubre tanto derrota normal como empate por tiempo (WinnerTeam == -1)
         if (DerrotaWidgetClass)
         {
-            UUserWidget* LoseWidget = CreateWidget<UUserWidget>(PC, DerrotaWidgetClass);
-            if (LoseWidget) LoseWidget->AddToViewport();
+            UUserWidget* W = CreateWidget<UUserWidget>(PC, DerrotaWidgetClass);
+            if (W) W->AddToViewport();
         }
     }
 

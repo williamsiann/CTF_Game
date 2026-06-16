@@ -13,7 +13,13 @@
 ACTF_GameMode::ACTF_GameMode()
 {
     ScoreToWin = 3;
-    MatchTime = 1200.f; // ← 20 minutos (20 * 60)
+    MatchTime = 1200.f; 
+}
+
+void ACTF_GameMode::BeginPlay()
+{
+    Super::BeginPlay();
+    StartMatch();
 }
 
 void ACTF_GameMode::PostLogin(APlayerController* NewPlayer)
@@ -46,7 +52,6 @@ void ACTF_GameMode::AssignTeam(APlayerController* NewPlayer)
         MiPersonaje->OnRep_Team();
     }
     
-    // Forzamos respawn para que use el PlayerStart correcto
     RestartPlayer(NewPlayer);
 }
 
@@ -77,7 +82,6 @@ void ACTF_GameMode::OnMatchTimerTick()
 
     if (NewTime <= 0.f)
     {
-        // Tiempo terminado empate 
         MatchEndReason = EMatchEndReason::Draw;
         EndMatch(-1); // -1 = nadie gana
     }
@@ -121,25 +125,22 @@ void ACTF_GameMode::EndMatch(int32 WinnerTeam)
         ACTF_GamePlayerController* PC = Cast<ACTF_GamePlayerController>(It->Get());
         if (PC)
         {
-            PC->OnMatchEnded(WinnerTeam); // -1 le llega a todos → muestran derrota
+            PC->OnMatchEnded(WinnerTeam); 
         }
     }
 }
 
 AActor* ACTF_GameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-    // Obtenemos el equipo del jugador
     int32 TeamToSpawn = -1;
 
     if (ACTF_PlayerState* PS = Player->GetPlayerState<ACTF_PlayerState>())
     {
         TeamToSpawn = PS->GetTeam();
     }
-
-    // Armamos el tag que buscamos: "Team0" o "Team1"
+    
     FName TargetTag = (TeamToSpawn == 0) ? FName("Team0") : FName("Team1");
-
-    // Recorremos todos los PlayerStart del nivel
+    
     TArray<AActor*> Candidates;
     for (TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
     {
@@ -149,14 +150,12 @@ AActor* ACTF_GameMode::ChoosePlayerStart_Implementation(AController* Player)
             Candidates.Add(PS_Actor);
         }
     }
-
-    // Si encontramos alguno, elegimos uno al azar
+    
     if (Candidates.Num() > 0)
     {
         int32 RandomIndex = FMath::RandRange(0, Candidates.Num() - 1);
         return Candidates[RandomIndex];
     }
-
-    // Fallback: comportamiento default de Unreal
+    
     return Super::ChoosePlayerStart_Implementation(Player);
 }

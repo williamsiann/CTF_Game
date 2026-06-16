@@ -215,18 +215,15 @@ void ACTF_GameCharacter::BeginPlay()
 		if (MiraWidgetInstance)
 		{
 			MiraWidgetInstance->AddToViewport();
-			// La ocultamos de entrada porque no estamos apuntando
 			MiraWidgetInstance->SetVisibility(ESlateVisibility::Hidden); 
 		}
 	}
-	// Creamos la pantalla de hielo solo para el jugador local
 	if (IsLocallyControlled() && PantallaCongeladaClass)
 	{
 		PantallaCongeladaInstance = CreateWidget<UUserWidget>(GetWorld(), PantallaCongeladaClass);
 		if (PantallaCongeladaInstance)
 		{
 			PantallaCongeladaInstance->AddToViewport();
-			// Usamos HitTestInvisible para que el hielo visual NO bloquee los clics del mouse
 			PantallaCongeladaInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
 			PantallaCongeladaInstance->SetRenderOpacity(0.0f); // Transparente total
 		}
@@ -236,7 +233,6 @@ void ACTF_GameCharacter::BeginPlay()
 // --- ICTF_Interactable ---
 void ACTF_GameCharacter::OnInteract(AActor* Interactor)
 {
-    // El Character no es interactuable por otros
 }
 
 bool ACTF_GameCharacter::CanInteract(AActor* Interactor) const
@@ -261,8 +257,7 @@ void ACTF_GameCharacter::OnDeath(AActor* Killer)
     if (!HasAuthority()) return;
 
     bIsDead = true;
-
-    // Soltamos la bandera si la teníamos
+	
     if (CarriedItem)
     {
 			Server_DropItem();

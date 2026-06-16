@@ -95,11 +95,9 @@ void ACTF_Flag::OnInteract(AActor* Interactor)
 
 void ACTF_Flag::OnRep_FlagState()
 {
-    //actualiza la visual segun el estado
     switch (CurrentState)
     {
         case EFlagState::Equipped:
-            // Aseguramos que los clientes también apaguen la colisión predictiva
             InteractionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             break;
             
@@ -125,7 +123,7 @@ void ACTF_Flag::OnDropped()
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     
     FVector NuevaUbicacion = GetActorLocation() + OffsetDesplazamiento;
-    FRotator NuevaRotacion = FRotator(0.f, GetActorRotation().Yaw, 0.f); // Recta, pero manteniendo hacia dónde miraba
+    FRotator NuevaRotacion = FRotator(0.f, GetActorRotation().Yaw, 0.f); 
     
     SetActorLocationAndRotation(NuevaUbicacion, NuevaRotacion);
     

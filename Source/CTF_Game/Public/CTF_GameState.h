@@ -48,32 +48,25 @@ public:
     EMatchState GetMatchState() const { return MatchState; }
 
 protected:
-
-    // Estado de la partida - replicado
+    
     UPROPERTY(ReplicatedUsing = OnRep_MatchState)
     EMatchState MatchState;
-
-    // Tiempo restante - replicado con RepNotify ✅
+    
     UPROPERTY(ReplicatedUsing = OnRep_RemainingTime)
     float RemainingTime;
-
-    // ✅ CAMBIO APLICADO: Agregado ReplicatedUsing para Team A
+    
     UPROPERTY(ReplicatedUsing = OnRep_ScoreTeamA)
     int32 ScoreTeamA;
-
-    // ✅ CAMBIO APLICADO: Agregado ReplicatedUsing para Team B
+    
     UPROPERTY(ReplicatedUsing = OnRep_ScoreTeamB)
     int32 ScoreTeamB;
 
-    // Cantidad de jugadores por equipo
     UPROPERTY(Replicated)
     int32 TeamASize;
-
-    // Cantidad de jugadores por equipo
+    
     UPROPERTY(Replicated)
     int32 TeamBSize;
-
-    // Equipo ganador
+    
     UPROPERTY(ReplicatedUsing = OnRep_WinnerTeam)
     int32 WinnerTeam;
 
@@ -83,12 +76,10 @@ protected:
 
     UFUNCTION()
     void OnRep_RemainingTime();
-
-    // ✅ CAMBIO APLICADO: Declaración del OnRep para Team A
+    
     UFUNCTION()
     void OnRep_ScoreTeamA();
-
-    // ✅ CAMBIO APLICADO: Declaración del OnRep para Team B
+    
     UFUNCTION()
     void OnRep_ScoreTeamB();
 
